@@ -1,9 +1,9 @@
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
 
-world_coordinates = [
+world_points = [
     #[x, y, z],
-    # ALL 63
     [-230.0, 15.0, 10.0],
     [-230.0, 137.5, 10.0],
     [-230.0, 260.0, 10.0],
@@ -69,9 +69,8 @@ world_coordinates = [
     [230.0, 260.0, 1260.0],
 ]
 
-# image in 1170x658
-image_coordinates = [
-    # ALL 63
+# image in 2787x1568
+image_points = [
     [1611, 898],
     [1612, 785],
     [1612, 670],
@@ -138,109 +137,66 @@ image_coordinates = [
 ]
 
 
+# Preparazione dei vettori per il sistema lineare
 b = []
-for i in range(len(image_coordinates)):
-  b.append(image_coordinates[i][0])
-  b.append(image_coordinates[i][1])
-
 A = []
-for i in range(len(image_coordinates)):
-  wc = world_coordinates[i]
-  ic = image_coordinates[i]
-  a1 = [wc[0], wc[1], wc[2], 1, 0, 0, 0, 0, -wc[0]*ic[0], -wc[1]*ic[0], -wc[2]*ic[0]]
-  a2 = [0, 0, 0, 0, wc[0], wc[1], wc[2], 1, -wc[0]*ic[1], -wc[1]*ic[1], -wc[2]*ic[1]]
-  A.append(a1)
-  A.append(a2)
 
+for i in range(len(image_points)):
+    wp = world_points[i]
+    ip = image_points[i]
+    
+    b.extend([ip[0], ip[1]])
+    
+    A.append([wp[0], wp[1], wp[2], 1, 0, 0, 0, 0, -wp[0] * ip[0], -wp[1] * ip[0], -wp[2] * ip[0]])
+    A.append([0, 0, 0, 0, wp[0], wp[1], wp[2], 1, -wp[0] * ip[1], -wp[1] * ip[1], -wp[2] * ip[1]])
+
+# Conversione in array NumPy
 b = np.array(b)
 A = np.array(A)
 
-x, residuals, rank, s = np.linalg.lstsq(A, b, rcond=None)
-x = np.append(x, 1)
+# Calcolo dei parametri della matrice di trasformazione
+x, residuals, rank, singular_values = np.linalg.lstsq(A, b, rcond=None)
+x = np.append(x, 1)  # Aggiunta del termine omogeneo
+transformation_matrix = x.reshape(3, 4)
 
+# Output dei risultati
+print("Residuati:", residuals)
+print("Valori singolari di A:", singular_values)
+print("Matrice di trasformazione:")
+print(transformation_matrix)
 
-# Reshape del vettore a una matrice 3x4
+# Funzione per proiettare un punto 3D in coordinate 2D
+def project_3d_to_2d(matrix, point_3d):
+    point_3d = np.append(np.array(point_3d), 1)
+    projected = np.dot(matrix, point_3d)
+    return [projected[0] / projected[2], projected[1] / projected[2]]
 
-print("Residuati:")
-print(residuals)
-
-print("Valori singolari di A:")
-print(s)
-
-
-print("prima del reshape: ")
-print(x)
-xx = x.reshape(3, 4)
-print("dopo il reshape: ")
-print(xx)
-
-
-print("PROVALO:")
-test_wc = np.append(np.array(world_coordinates[13]), 1)
-print("input:", test_wc)
-
-test_result = np.dot(xx, test_wc)
-print(test_result[0]/test_result[2], test_result[1]/test_result[2])
-
+# Calcolo dell'errore medio
 errors = []
-for i in range(len(image_coordinates)):
-  input = np.append(np.array(world_coordinates[i]), 1)
-  result = np.dot(xx, input)
-  ic = [result[0]/result[2], result[1]/result[2]]
-  print(f"calc result: [{ic[0]:.1f}, {ic[1]:.1f}]")
-  print(f"real result: [{image_coordinates[i][0]:.1f}, {image_coordinates[i][1]:.1f}]\n")
-  error = (image_coordinates[i][0]-ic[0])**2 + (image_coordinates[i][1]-ic[1])**2
-  #print("error: ", error)
-  errors.append(error)
+for i in range(len(image_points)):
+    projected_point = project_3d_to_2d(transformation_matrix, world_points[i])
+    error = (image_points[i][0] - projected_point[0])**2 + (image_points[i][1] - projected_point[1])**2
+    errors.append(error)
 
-print("average error: ", sum(errors)/len(errors))
+average_error = sum(errors) / len(errors)
+print("Errore medio:", average_error)
 
-def project_3dTo2d(transformation_matrix, point_3d):
-  point_3d = np.append(np.array(point_3d), 1)
-  result = np.dot(transformation_matrix, point_3d)
-  ic = [result[0]/result[2], result[1]/result[2]]
-  return ic
-
-import matplotlib.pyplot as plt
-
-def draw_points(input_image, gt_2d, calc_2d, output_image, rescale=None):
+# Funzione per disegnare i punti su un'immagine
+def draw_points(input_image, gt_points, predicted_points, output_image):
     image = cv2.imread(input_image)
-
-    red = (0, 0, 255)
-    green = (0, 255, 0)
+    green, red = (0, 255, 0), (0, 0, 255)
     point_size = 5
 
-    for point in gt_2d:
-        point = [int(x) for x in point]
-        cv2.circle(image, point, point_size, green, -1)
-    for point in calc_2d:
-        point = [int(x) for x in point]
-        cv2.circle(image, point, point_size, red, -1)
+    for point in gt_points:
+        cv2.circle(image, (int(point[0]), int(point[1])), point_size, green, -1)
+    for point in predicted_points:
+        cv2.circle(image, (int(point[0]), int(point[1])), point_size, red, -1)
 
     cv2.imwrite(output_image, image)
-
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     plt.imshow(image_rgb)
-    plt.imsave("sium.png", image_rgb)
+    plt.show()
 
-# gt_2d = [
-#     [32, 371], # pollice sx
-#     [1141, 347], # pollice dx
-#     [446, 513], # clavicola sx
-#     [753, 512], # clavicola dx
-# ]
-
-# Punti rossi - predicted
-gt_3d = [
-    [535.6, 103.4, 939.6], # pollice sx
-    [-545.7, 127.7, 932.2], # pollice dx
-    [67, 54, 1243], # clavicola sx
-    [-73, 54, 1243], # clavicola dx
-]
-
-gt_2d = image_coordinates
-gt_3d = world_coordinates
-
-predicted = [project_3dTo2d(xx, point) for point in gt_3d]
-
-draw_points("view3.png", gt_2d, predicted, "output2.png")
+# Generazione e visualizzazione dei punti proiettati
+predicted_points = [project_3d_to_2d(transformation_matrix, point) for point in world_points]
+draw_points("view3.png", image_points, predicted_points, "output.png")
