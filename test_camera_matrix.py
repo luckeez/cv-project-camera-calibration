@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 
-input_image = "view2.png"
+input_image = "images/view2.png"
 
 matrix = np.load("camera_matrix.npy")
 
@@ -13,10 +13,15 @@ def project_3d_to_2d(matrix, point_3d):
     return [projected[0] / projected[2], projected[1] / projected[2]]
 
 world_points = [
-    [535.6, 103.4, 939.6], # pollice sx
-    [-545.7, 127.7, 932.2], # pollice dx
-    [67, 54, 1243], # clavicola sx
-    [-73, 54, 1243], # clavicola dx
+    # [535.6, 103.4, 939.6], # pollice sx
+    # [-545.7, 127.7, 932.2], # pollice dx
+    # [67, 54, 1243], # clavicola sx
+    # [-73, 54, 1243], # clavicola dx
+    [-360, 350, 900],
+    [0, 200, 700],
+    [100, 230, 400],
+    [260, 300, 1000],
+    [-200, 200, 500]
 ]
 
 # Funzione per disegnare i punti su un'immagine
@@ -35,7 +40,7 @@ def draw_points(input_image, output_image, predicted_points, gt_points = None):
     cv2.imwrite(output_image, image)
 
 predicted_points = [project_3d_to_2d(matrix, point) for point in world_points]
-draw_points(input_image,  "output.png", predicted_points)
+draw_points(input_image, "outputs/output.png", predicted_points)
 
 print(predicted_points)
 

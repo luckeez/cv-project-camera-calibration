@@ -36,5 +36,4 @@ for z in z_locations:
     for x in x_locations:
         for y in y_locations:
             #create_cube(x, y, z, 0.1, name=f"cube_{x:.0f}_{y:.0f}_{z:.0f}")
-            #if not (z<844 and y==15):
             print(f"[{x:.1f}, {y:.1f}, {z:.1f}],")
