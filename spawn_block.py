@@ -27,4 +27,7 @@ for loc in locations:
     x, y, z = loc
     create_cube(x, y, z, 0.1, name=f"cube_{x:.0f}_{y:.0f}_{z:.0f}")
 
-    
+
+
+
+1568
