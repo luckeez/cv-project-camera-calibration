@@ -3,7 +3,11 @@ import cv2
 
 from coordinates import joints_3d
 
-# Mappa tra descrizioni testuali e indici
+'''
+Script to compute the joint positions in the 2D image and plot them.
+'''
+
+# Text_descriptions - index map
 joint_descriptions = [
     "pelvis", "spine_01", "spine_02", "spine_03",
     "clavicle_l", "upperarm_l", "lowerarm_l", "hand_l",
@@ -27,7 +31,7 @@ joint_descriptions = [
     "cc_base_r_pinkytoe1", "cc_base_r_ringtoe1"
 ]
 
-# Scheletro definito con descrizioni
+# Define the skeleton with descriptions
 skeleton = [
     ("pelvis", "spine_01"), ("spine_01", "spine_02"), ("spine_02", "spine_03"),
     ("spine_03", "clavicle_l"), ("clavicle_l", "upperarm_l"), ("upperarm_l", "lowerarm_l"), ("lowerarm_l", "hand_l"),
@@ -51,52 +55,53 @@ skeleton = [
     ("ball_r", "cc_base_r_midtoe1"), ("ball_r", "cc_base_r_pinkytoe1"), ("ball_r", "cc_base_r_ringtoe1")
 ]
 
-# Carica immagine e matrice
+# load image and matrix
 input_image = "images/giulia.png"
 output_image = "outputs/output_joints.png"
 matrix = np.load("camera_matrix.npy")
 
-# Funzione per proiettare un punto 3D in coordinate 2D
+# Function to project a 3D point in 2D coordinates
 def project_3d_to_2d(matrix, point_3d):
     point_3d = np.append(np.array(point_3d), 1)
     projected = np.dot(matrix, point_3d)
     return [projected[0] / projected[2], projected[1] / projected[2]]
 
-# Funzione per disegnare punti e scheletro
+# Function to draw points and skeleton
 def draw_points_and_skeleton(input_image, output_image, points_2d, skeleton, joint_descriptions):
     image = cv2.imread(input_image)
     if image is None:
         raise ValueError("Impossibile caricare l'immagine di input.")
     
-    red = (0, 0, 255)  # Colore dei punti
-    blue = (255, 0, 0) # Colore dello scheletro
+    red = (0, 0, 255)  # Points color
+    blue = (255, 0, 0) # Skeleton color
     point_size = 10
     line_thickness = 15
 
     # Creare una mappa tra descrizioni e coordinate 2D
+    # Create a map descriptions-2d coordinates
     joint_map = {desc: points_2d[i] for i, desc in enumerate(joint_descriptions)}
 
-    # Trova tutti i punti usati nello scheletro
+    # Find used points in the skeleton
     used_joints = set([joint for connection in skeleton for joint in connection])
 
-    # Disegna lo scheletro
+    # Draw the skeleton
     for start, end in skeleton:
         start_point = joint_map[start]
         end_point = joint_map[end]
         cv2.line(image, (int(start_point[0]), int(start_point[1])), (int(end_point[0]), int(end_point[1])), blue, line_thickness)
 
-    # Disegna i punti utilizzati
+    # Draw used points
     for joint in used_joints:
         point = joint_map[joint]
         cv2.circle(image, (int(point[0]), int(point[1])), point_size, red, -1)
 
-    # Salva l'immagine
+    # Save the image
     cv2.imwrite(output_image, image)
 
-# Proietta i punti 3D in 2D
+# Project 3D points in 2D
 predicted_points = [project_3d_to_2d(matrix, point) for point in joints_3d]
 
-# Disegna punti e scheletro
+# Draw points and skeleton
 draw_points_and_skeleton(input_image, output_image, predicted_points, skeleton, joint_descriptions)
 
 print("Output image:", output_image)

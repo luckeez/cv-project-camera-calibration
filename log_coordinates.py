@@ -1,7 +1,4 @@
 import cv2
-from spawn_block import locations
-print(locations)
-breakpoint()
 
 input_image = "images/clean_view.png"
 
